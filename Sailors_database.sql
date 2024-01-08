@@ -1,10 +1,10 @@
-create database Sailors1;
-use Sailors1;
+create database Sailors2;
+use Sailors2;
 
 CREATE TABLE SAILORS (
     sid INT NOT NULL PRIMARY KEY,
     sname VARCHAR(50),
-    rating FLOAT4,
+    rating DECIMAL(10,2),
     age INT
 );
     
@@ -112,17 +112,12 @@ INSERT INTO RSERVERS (sid, bid, sdate) VALUES
 SELECT r.bid as boat_id, AVG(s.age) as avg_age FROM SAILORS s JOIN RSERVERS r ON s.sid = r.sid WHERE s.age >= 40 GROUP BY r.bid HAVING COUNT(DISTINCT r.sid) >= 5;
 
 -- Create a view that shows the names and colours of all the boats that have been reserved by a sailor with a specific rating.
--- (not working!!!) 
 CREATE OR REPLACE VIEW ReservedBoatsByRating AS
 SELECT DISTINCT s.sname AS sailor_name, b.bname AS boat_name, b.color
 FROM SAILORS s
 JOIN RSERVERS r ON s.sid = r.sid
 JOIN BOAT b ON r.bid = b.bid
 WHERE s.rating = 8.7;
-
-CREATE OR REPLACE VIEW ReservedBoatsByRating AS
-SELECT DISTINCT s.sname AS sailor_name, b.bname AS boat_name, b.color 
-FROM SAILORS s, RSERVERS r, BOAT b WHERE s.sid = r.sid AND b.bid = r.bid AND s.rating = 7.9;
 -- check 
 SELECT * FROM ReservedBoatsByRating;
 
