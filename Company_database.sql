@@ -1,5 +1,5 @@
-CREATE DATABASE Company2;
-USE Company2;
+CREATE DATABASE Company3;
+USE Company3;
 
 -- Create EMPLOYEE table
 CREATE TABLE EMPLOYEE (
@@ -43,7 +43,6 @@ CREATE TABLE WORKS_ON (
     SSN VARCHAR(11),
     PNo INT,
     Hours DECIMAL(5, 2),
-    PRIMARY KEY (SSN, PNo),
     FOREIGN KEY (SSN) REFERENCES EMPLOYEE(SSN),
     FOREIGN KEY (PNo) REFERENCES PROJECT(PNo)
 );
@@ -89,11 +88,10 @@ INSERT INTO WORKS_ON (SSN, PNo, Hours) VALUES
 ('567-89-0123', 2, 40);
 
 -- Make a list of all project numbers for projects that involve an employee whose last name is ‘Scott’, either as a worker or as a manager of the department that controls the project.
-SELECT DISTINCT P.PNo,E.Name
-FROM PROJECT P
-JOIN WORKS_ON W ON P.PNo = W.PNo
-JOIN EMPLOYEE E ON W.SSN = E.SSN OR E.DNo = P.DNo
-WHERE E.Name = 'Scott';
+SELECT * FROM PROJECT WHERE 
+DNo IN (SELECT DNo FROM EMPLOYEE WHERE Name LIKE "%Scott%") 
+OR 
+DNo IN (SELECT DNo FROM DEPARTMENT WHERE MgrSSN IN (SELECT SSN FROM EMPLOYEE WHERE Name LIKE "%Scott%"));    
 
 -- Show the resulting salaries if every employee working on the ‘IoT’ project is given a 10 percent raise
 INSERT INTO PROJECT (PNo, PName, PLocation, DNo) VALUES
@@ -104,7 +102,7 @@ SET Salary = Salary * 1.10
 WHERE SSN IN (
     SELECT SSN
     FROM WORKS_ON
-    WHERE PNo = (
+    WHERE PNo IN (
         SELECT PNo
         FROM PROJECT
         WHERE PName = 'IoT'
@@ -130,29 +128,33 @@ WHERE
     D.DName = 'Accounts';
 
 -- Retrieve the name of each employee who works on all the projects controlled by department number 5 (use NOT EXISTS operator).
-SELECT DISTINCT E.Name
+SELECT E.Name
 FROM EMPLOYEE E
-JOIN WORKS_ON W ON E.SSN = W.SSN
-JOIN PROJECT P ON W.PNo = P.PNo
-WHERE P.DNo = 5
-AND NOT EXISTS (
-    SELECT *
-    FROM PROJECT P2
-    WHERE P2.DNo = 5
-    AND P2.PNo NOT IN (
-        SELECT W2.PNo
-        FROM WORKS_ON W2
-        WHERE W2.SSN = E.SSN
+WHERE NOT EXISTS (
+  SELECT P.PNo
+  FROM PROJECT P
+  WHERE P.DNo = 5
+    AND NOT EXISTS (
+      SELECT W.PNo
+      FROM WORKS_ON W
+      WHERE W.SSN = E.SSN AND W.PNo = P.PNo
     )
 );
 
 -- For each department that has more than five employees, retrieve the department number and the number of its employees who are making more than Rs. 6,00,000.
-SELECT D.DNo AS DepartmentNumber, COUNT(*) AS NumEmployeesAboveThreshold
-FROM EMPLOYEE E
-JOIN DEPARTMENT D ON E.DNo = D.DNo
-WHERE E.Salary > 600000
-GROUP BY D.DNo
-HAVING COUNT(*) > 5;
+SELECT 
+    D.DNo AS DepartmentNumber,
+    COUNT(E.SSN) AS NumberOfEmployees
+FROM 
+    DEPARTMENT D
+JOIN 
+    EMPLOYEE E ON D.DNo = E.DNo
+WHERE 
+    E.Salary > 600000.00
+GROUP BY 
+    D.DNo
+HAVING 
+    COUNT(E.SSN) >= 5;
 
 -- Create a view that shows name, dept name and location of all employees
 CREATE VIEW EmployeeDetails AS
@@ -165,27 +167,17 @@ SELECT * FROM EmployeeDetails;
 
 -- Create a trigger that prevents a project from being deleted if it is currently being worked by any employee
 DELIMITER //
-
-CREATE TRIGGER PreventProjectDeletion
+CREATE TRIGGER PREVENT_DELETE
 BEFORE DELETE ON PROJECT
 FOR EACH ROW
 BEGIN
-    DECLARE project_count INT;
-
-    -- Check if the project is being worked on by any employee
-    SELECT COUNT(*)
-    INTO project_count
-    FROM WORKS_ON
-    WHERE PNo = OLD.PNo;
-
-    -- If the project is being worked on, prevent deletion
-    IF project_count > 0 THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Project cannot be deleted as it is being worked on by one or more employees';
+    IF EXISTS (SELECT * FROM WORKS_ON WHERE PNo = OLD.PNo) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'The project cannot be deleted as it has an assigned employee';
     END IF;
 END;
 //
 DELIMITER ;
 
+-- CHECK trigger
 DELETE FROM PROJECT WHERE PNo = 2;
 -- Error Code: 1644. Project cannot be deleted as it is being worked on by one or more employees
