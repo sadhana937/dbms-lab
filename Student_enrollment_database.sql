@@ -1,5 +1,5 @@
-CREATE DATABASE IF NOT EXISTS Student_enrollment3;
-USE Student_enrollment3;
+CREATE DATABASE IF NOT EXISTS Student_enrollment4;
+USE Student_enrollment4;
 
 CREATE TABLE IF NOT EXISTS STUDENT (
     regno VARCHAR(10) PRIMARY KEY,
@@ -34,7 +34,6 @@ CREATE TABLE IF NOT EXISTS BOOK_ADOPTION (
     course INT,
     sem INT,
     book_ISBN INT,
-    PRIMARY KEY (course, book_ISBN),
     FOREIGN KEY (course) REFERENCES COURSE(course),
     FOREIGN KEY (book_ISBN) REFERENCES TEXT(book_ISBN)
 );
@@ -71,7 +70,15 @@ INSERT INTO BOOK_ADOPTION (course, sem, book_ISBN) VALUES
 (102, 1, 1001),
 (103, 2, 1004);
 
-select * from COURSE;
+INSERT INTO BOOK_ADOPTION (course, sem, book_ISBN) VALUES
+(101, 2, 1001);
+
+INSERT INTO BOOK_ADOPTION (course, sem, book_ISBN) VALUES
+(101, 2, 1002);
+
+INSERT INTO BOOK_ADOPTION (course, sem, book_ISBN) VALUES
+(101, 2, 1003);
+
 -- Demonstrate how you add a new text book to the database and make this book be adopted by some department
 INSERT INTO TEXT (book_ISBN, book_title, publisher, author) VALUES
 (1006, 'New Book', 'New Publisher', 'New Author');
@@ -80,39 +87,47 @@ INSERT INTO BOOK_ADOPTION (course, sem, book_ISBN) VALUES
 (101, 1, 1006);
 
 -- Produce a list of text books (include Course #, Book-ISBN, Book-title) in the alphabetical order for courses offered by the ‘CS’ department that use more than two books.
-SELECT BA.course, BA.book_ISBN, T.book_title
-FROM BOOK_ADOPTION BA
-JOIN TEXT T ON BA.book_ISBN = T.book_ISBN
-JOIN COURSE C ON BA.course = C.course
-WHERE C.dept = 'CS'
-GROUP BY BA.course, BA.book_ISBN, T.book_title
-HAVING COUNT(*) > 2
-ORDER BY T.book_title;
+SELECT course, book_ISBN, book_title
+FROM BOOK_ADOPTION 
+JOIN COURSE USING(course) 
+JOIN TEXT USING(book_ISBN) 
+WHERE dept="CS" 
+AND course IN (
+    SELECT course
+    FROM BOOK_ADOPTION 
+    GROUP BY course
+    HAVING COUNT(*) > 2
+)
+ORDER BY book_title;
 
 -- List any department that has all its adopted books published by a specific publisher
-SELECT C.dept
-FROM COURSE C
-WHERE NOT EXISTS (
-    SELECT *
-    FROM BOOK_ADOPTION BA
-    JOIN TEXT T ON BA.book_ISBN = T.book_ISBN
-    WHERE C.course = BA.course
-    AND T.publisher <> 'Pearson'
+SELECT DISTINCT dept FROM
+COURSE WHERE dept IN(
+	SELECT dept FROM COURSE JOIN BOOK_ADOPTION 
+    USING(course) JOIN TEXT USING(book_ISBN) 
+    WHERE publisher='Pearson'
+)
+AND 
+dept NOT IN(
+	SELECT dept FROM COURSE JOIN BOOK_ADOPTION 
+    USING(course) JOIN TEXT USING(book_ISBN) 
+    WHERE publisher != 'Pearson'
 );
+
 
 -- List the students who have scored maximum marks in ‘DBMS’ course
 SELECT E.regno, S.name, E.marks
 FROM ENROLL E
 JOIN STUDENT S ON E.regno = S.regno
-WHERE E.course = 1001
+WHERE E.course = 102
 AND E.marks = (
     SELECT MAX(marks)
     FROM ENROLL
-    WHERE course = 1001
+    WHERE course = 102
 );
 
 -- Create a view to display all the courses opted by a student along with marks obtained
-CREATE VIEW StudentCourseMarks AS
+CREATE OR REPLACE VIEW StudentCourseMarks AS
 SELECT S.name, C.cname, E.marks
 FROM ENROLL E
 JOIN STUDENT S ON E.regno = S.regno
@@ -138,7 +153,3 @@ DELIMITER ;
 
 -- Attempt to insert a new enrollment record with marks below the prerequisite
 INSERT INTO ENROLL (regno, course, sem, marks) VALUES ('S3', 101, 1, 35);
-
-
-
-
