@@ -1,5 +1,5 @@
-CREATE DATABASE Order_processing;
-USE Order_processing;
+CREATE DATABASE Order_processing1;
+USE Order_processing1;
 
 -- Create Customer table
 CREATE TABLE Customer (
@@ -33,22 +33,6 @@ INSERT INTO Orders (orders, odate, cust, order_amt) VALUES
 (104, '2023-04-10', 4, 900),
 (105, '2023-05-05', 3, 600);
 
--- Create Order-item table
-CREATE TABLE Order_item (
-    orders INT,
-    Item INT,
-    qty INT,
-    FOREIGN KEY (orders) REFERENCES Orders(orders) ON DELETE CASCADE
-);
-
--- Insert some data into Order_item table
-INSERT INTO Order_item (orders, Item, qty) VALUES
-(101, 1, 2),
-(101, 2, 3),
-(102, 3, 1),
-(103, 2, 2),
-(104, 1, 4);
-
 -- Create Item table
 CREATE TABLE Item (
     Item INT PRIMARY KEY,
@@ -63,21 +47,22 @@ INSERT INTO Item (Item, unitprice) VALUES
 (4, 80),
 (5, 120);
 
--- Create Shipment table
-CREATE TABLE Shipment (
+-- Create Order-item table
+CREATE TABLE Order_item (
     orders INT,
-    warehouse INT,
-    ship_date DATE,
-    FOREIGN KEY (orders) REFERENCES Orders(orders) ON DELETE CASCADE
+    Item INT,
+    qty INT,
+    FOREIGN KEY (orders) REFERENCES Orders(orders) ON DELETE CASCADE,
+    FOREIGN KEY (Item) REFERENCES Item(Item) ON DELETE CASCADE
 );
 
--- Insert some data into Shipment table
-INSERT INTO Shipment (orders, warehouse, ship_date) VALUES
-(101, 1, '2023-01-20'),
-(102, 2, '2023-02-25'),
-(103, 3, '2023-03-30'),
-(104, 1, '2023-04-15'),
-(105, 2, '2023-05-10');
+-- Insert some data into Order_item table
+INSERT INTO Order_item (orders, Item, qty) VALUES
+(101, 1, 2),
+(101, 2, 3),
+(102, 3, 1),
+(103, 2, 2),
+(104, 1, 4);
 
 -- Create Warehouse table
 CREATE TABLE Warehouse (
@@ -93,6 +78,23 @@ INSERT INTO Warehouse (warehouse, city) VALUES
 (4, 'San Francisco'),
 (5, 'Seattle');
 
+-- Create Shipment table
+CREATE TABLE Shipment (
+    orders INT,
+    warehouse INT,
+    ship_date DATE,
+    FOREIGN KEY (orders) REFERENCES Orders(orders) ON DELETE CASCADE,
+    FOREIGN KEY (warehouse) REFERENCES Warehouse(warehouse) ON DELETE CASCADE
+);
+
+-- Insert some data into Shipment table
+INSERT INTO Shipment (orders, warehouse, ship_date) VALUES
+(101, 1, '2023-01-20'),
+(102, 2, '2023-02-25'),
+(103, 3, '2023-03-30'),
+(104, 1, '2023-04-15'),
+(105, 2, '2023-05-10');
+
 -- List the Orders and Ship_date for all orders shipped from Warehouse "W2".
 SELECT o.orders, s.ship_date FROM Orders o join Shipment s ON o.orders=s.orders WHERE s.warehouse = 2;
 
@@ -105,8 +107,7 @@ WHERE c.cname = 'Kumar';
 
 -- Produce a listing: Cname, #ofOrders, Avg_Order_Amt, where the middle column is the total number of orders by the customer and the last column is the average order amount for that customer. (Use aggregate functions)
 SELECT c.cname, COUNT(o.orders), AVG(o.order_amt)
-FROM Customer c
-LEFT JOIN Orders o ON c.cust = o.cust
+FROM Customer c JOIN Orders o ON c.cust = o.cust
 GROUP BY c.cname;
 
 -- delete all orders for customer named kumar
@@ -136,7 +137,7 @@ DELIMITER ;
 INSERT INTO Item (item, unitprice) VALUES (1006, 600);
 
 -- Insert a new order with the new item
-INSERT INTO Orders (orders, odate, cust, order_amt) VALUES (206, '2023-04-16', 106, 0);
+INSERT INTO Orders (orders, odate, cust, order_amt) VALUES (206, '2023-04-16', 2, 0);
 
 -- Insert the new item into the order
 INSERT INTO Order_Item (orders, item, qty) VALUES (206, 1006, 5);
@@ -146,13 +147,10 @@ SELECT * FROM Orders;
 
 
 -- Create a view to display orderID and shipment date of all orders shipped from a warehouse 5
-CREATE VIEW Order_Shipment_View AS
+CREATE OR REPLACE VIEW Order_Shipment_View AS
 SELECT o.orders, s.ship_date
 FROM Orders o
 JOIN Shipment s ON o.orders = s.orders
 WHERE s.warehouse = 5;
 
 select * from Order_Shipment_View;
-
-
-
